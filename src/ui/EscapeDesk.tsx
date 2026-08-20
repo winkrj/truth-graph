@@ -211,7 +211,7 @@ function PuzzleShell({
     dialog?.addEventListener("keydown", keepFocusInside);
     return () => {
       dialog?.removeEventListener("keydown", keepFocusInside);
-      queueMicrotask(() => {
+      window.requestAnimationFrame(() => {
         const triggerStillUsable =
           previouslyFocused?.isConnected && !previouslyFocused.matches(":disabled");
         if (triggerStillUsable) {
