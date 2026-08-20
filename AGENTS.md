@@ -1,179 +1,108 @@
-# Investigation Reconstruction Repository Rules
+# 심사 3분 전 Repository Rules
 
 ## Instruction Order
 
-Apply project guidance in this order:
+Apply guidance in this order:
 
 1. The human's newest explicit instruction.
 2. `AGENTS.md` for persistent repository rules.
 3. `GAME_DESIGN.md` for the current playable design.
 4. `PROJECT_CONTEXT.md` for current implementation context.
-5. `IMPLEMENTATION_PLAN.md` only as a historical plan where it does not conflict with newer guidance.
-6. `docs/CODEX_LOG.md` as chronological evidence of prior decisions and work, not as a current product specification.
+5. `IMPLEMENTATION_PLAN.md` only as historical planning where it does not conflict with newer guidance.
+6. `docs/CODEX_LOG.md` as chronological evidence, not a current specification.
 
-The original star/constellation design and Milestone 0 remain useful history in `IMPLEMENTATION_PLAN.md` and `docs/CODEX_LOG.md`. Do not rewrite those historical decisions to make them look current.
+Milestone 0, Proof of Fun v2, and Core Fun Candidates 01–02 are historical evidence. Do not rewrite their log entries to make them look current.
 
-## Product Mission
+## Current Product Mission
 
-This project is a detective puzzle about reconstructing what happened from incomplete evidence. The player explicitly connects evidence and causal relationships until an apparently suspicious incident has a coherent explanation.
+The active build is a Korean-first, short-form micro escape game called **심사 3분 전**. The player investigates four physical desk objects, carries information from one puzzle into the next, releases three visible locker latches, and physically discovers the missing demo laptop.
 
-Current core loop:
+Current loop:
 
-**INVESTIGATE → DISCOVER → CONNECT → RECONSTRUCT → SOLVE**
+**현장 파악 → 물건 조사 → 정보 발견 → 다른 물건에 적용 → 잠금 해제 → 보관함 개방**
 
-The central player fantasy is: **"I figured out how these pieces of evidence fit together."**
+The player fantasy is:
 
-The board is the player's reasoning interface, not a passive visualization and not a general graph editor. Prefer causal claims such as "A caused B" over generic association such as "A is related to B."
+> 내가 단서를 읽은 것이 아니라, 물건을 직접 풀고 정보를 연결해 숨겨진 노트북을 찾아냈다.
 
-## Product Identity and Visual Direction
+The current product question is whether this connected three-minute chain is immediately understandable, lightly challenging, satisfying, and distinctive enough to retain a first-time player.
 
-- Stars, constellations, space, ASTER-9, and the Memory Investigator setting are historical concepts, not required product identity.
-- The current visual metaphor is a clean, modern investigation board / case board.
-- Present understandable evidence objects: testimony, access logs, photos, system records, people, objects, incidents, timestamps, and maintenance reports.
-- Favor dark neutral space, readable evidence cards, clear hierarchy, restrained connection lines, subtle time cues, and strong selected/hypothesis/confirmed states.
-- Do not build a realistic corkboard simulator or decorate at the expense of comprehension.
-- The interface should feel like a game, not a developer graph visualization.
+## Core Fun Candidate 03 Rules
+
+- The first viewport must show the missing laptop incident, the three-minute deadline, the central locked fire-safe locker, two available objects, two dependency-locked objects, and three physical progress latches.
+- Avoid a tutorial modal. The player should understand `물건을 조사해 세 개의 잠금을 풀어라` from layout and interaction.
+- Thermal scan and message recovery are available in either order.
+- Protocol overlay requires both starting rewards: `82°C` and `안전 규정 7조`.
+- Route trace requires the protocol reward: `방화 보관실 B-3`.
+- The exact route opens the third latch and the locker; the laptop is not rendered or named as found beforehand.
+- Every puzzle uses a different semantic interaction: spatial scan, fragment ordering, two-dial alignment, and chronological route tracing.
+- One insight per puzzle. No precision, timing, reflex, drag-only action, random failure, or resource-consuming wrong answer.
+- Wrong submissions preserve progress. A contextual hint becomes available only after a wrong reasoning attempt; a second hint requires another wrong attempt.
+- A puzzle may be closed and revisited without losing solved progress. Reset restores the exact deterministic initial state.
+- Do not restore the two-film budget, weak-pair failure, comparison modal, or multiple-choice verdict as the core mechanic.
+- Do not visually or semantically reveal B-3, the laptop, solution fields, or later rewards before they are earned.
 
 ## Korean-First Rule
 
-All player-facing text must be Korean, including:
-
-- titles and instructions;
-- evidence labels and descriptions;
-- buttons and controls;
-- feedback and hypothesis states;
-- reveal messages;
-- conclusion choices and result copy;
-- accessible names and status announcements intended for players.
-
-Internal identifiers, TypeScript types, enum values, and implementation names may remain English. Keep canonical identifiers stable; do not translate them merely for appearance.
-
-## Proof of Fun v2 Rules
-
-The current prototype tests whether causal reconstruction feels like deduction. It uses:
-
-- exactly seven concise, authored evidence cards;
-- a lightweight chronology aid where it improves comprehension;
-- authored causal deduction rules rather than arbitrary relationship authoring;
-- at least one plausible wrong deduction with safe recovery;
-- a critical reconstruction that turns suspicious evidence into a coherent innocent explanation;
-- a very small authored conclusion set;
-- a deterministic reset.
-
-The player selects the cause card first and the result card second. Selection order expresses `cause → result`; the deterministic engine evaluates that ordered pair against authored rules. Do not silently reverse an invalid pair. Add a relationship-type choice only if playtesting shows it improves reasoning; do not add one merely because the data contains edge types.
-
-Invalid deductions must:
-
-- give clear, lightweight Korean feedback;
-- leave canonical state unchanged;
-- never dead-end the case;
-- never reveal the correct answer through the error message.
-
-Prefer feedback in the spirit of: `현재 증거만으로는 이 관계를 뒷받침할 수 없습니다.` Do not reduce the response to `틀렸습니다.`
-
-When the critical causal reconstruction is complete:
-
-1. emphasize the completed causal chain;
-2. reduce noise from context-only evidence;
-3. make the actual incident easy to read;
-4. show a concise Korean comprehension reveal;
-5. unlock the small conclusion set.
-
-The case is solved only by an authored correct conclusion after the required reconstruction. Incorrect conclusions receive bounded feedback and preserve a recoverable state. Reset must restore the exact initial evidence state.
-
-## CASE 01 Boundary
-
-The existing CASE 01 story may remain temporarily. Its approximate truth is:
-
-- 08:50 — E-17 is confirmed in storage.
-- 09:37 — Oxygen Generator #2 fails and Jun responds.
-- 09:42 — storage is accessed with maintenance authorization and E-17 is removed.
-- E-17 is used as emergency power; the oxygen system stabilizes.
-- The withdrawal record is missed.
-- 10:05 — E-17 is reported missing.
-
-The apparent interpretation is theft. The actual interpretation is emergency use followed by an unrecorded withdrawal. Keep story rewrite effort small: the mechanic, not the temporary fiction, is under test.
+All player-facing titles, prompts, controls, feedback, rewards, results, metadata, and accessibility text must be natural Korean. Internal TypeScript names may remain English. Do not expose graph, node, edge, state-machine, or canonical-state terminology to the player.
 
 ## Deterministic Architecture
 
-Preserve this one-way boundary:
+Preserve the one-way boundary:
 
-**Case Definition → Deterministic Game Engine → Derived Board/Graph Projection → React UI**
+**Case Definition → Deterministic Game Engine → Derived Case Projection → React UI**
 
-- **Case Definition:** authored evidence, canonical truth, deduction rules, conclusion rules, and presentation metadata.
-- **Game Engine:** pure, deterministic state transitions and validation.
-- **Projection:** derives visible cards, links, causal progression, emphasis, and conclusion availability from canonical state.
-- **React UI:** collects input and renders projection/effects; it does not decide correctness.
-- **Animation:** presentation only; completion events must never determine progression.
+- Case Definition owns puzzle kinds, options, dependencies, authored solutions, rewards, hints, and conclusion.
+- The engine owns availability, active puzzle, scans, wrong attempts, hint levels, exact solution validation, solved IDs, latch progress, locker completion, immutability, and reset.
+- Projection masks thermal readings until scanned, rewards until solved, hints until requested, and authored solution fields entirely.
+- React renders the projection, keeps only transient control arrangement locally, and dispatches typed candidate answers. CSS, animation, time, and prose do not decide correctness.
 
-Do not use time, randomness, generated IDs, prose interpretation, network state, React-local presentation state, or animation state to decide canonical correctness. Engine tests must run without React, SVG, browser APIs, animation, network access, or AI.
+Runtime gameplay must not depend on randomness, network state, runtime prose interpretation, or AI. Engine tests must run without React, browser APIs, animation, network access, or AI.
 
-Retain the smallest existing stack: React, TypeScript, Vite, pure functions, explicit types, native browser/SVG/CSS capabilities, and small easy-to-delete modules. Refactor constellation-specific names only when they interfere with the investigation-board model; avoid a cosmetic architecture-wide rename.
+Retain the smallest stack: React, TypeScript, Vite, semantic HTML, inline SVG/CSS, pure functions, and Vitest. Add no dependency or architecture when the existing stack can satisfy a demonstrated requirement.
 
-## AI Boundary
+## AI Scenario-Generation Boundary
 
-Runtime AI is unnecessary and must not determine evidence, deductions, truth, progression, or conclusions.
+Runtime gameplay does not depend on an LLM. The future interface is:
 
-AI scenario generation is a possible future **offline content-authoring** direction only. A future candidate case would require structural validation, deterministic replay, human editorial review, and human playtesting before it could become an approved runtime Case Definition. Do not build that pipeline during Proof of Fun v2.
+**AI-authored structured puzzle chain → validation → human review and playtest → deterministic runtime**
+
+A future candidate case may provide four themed objects, supported interaction-template kinds, explicit dependency IDs, visible options, hidden solution values, rewards used by later puzzles, staged hints, a physical reveal, and an authored conclusion. Do not implement the teammate's generator during the Core Fun Gate or claim it exists.
 
 ## Scope Guardrails
 
-Until explicitly requested, do not build:
+Until the human explicitly approves the Core Fun Gate, do not add production deployment, audio, extra cases, runtime AI, generator tooling, NPC systems, generalized editors, backend, persistence, accounts, scoring, achievements, or submission materials.
 
-- CASE 02 or CASE 03;
-- NPC investigation systems;
-- procedural generation;
-- runtime AI;
-- a production scenario-generation pipeline;
-- a generalized case editor;
-- backend services;
-- persistence or accounts;
-- scoring or achievements;
-- complex animations;
-- drag-and-drop graph editing;
-- arbitrary relationship authoring;
-- speculative abstractions for hypothetical future cases.
-
-Keep one evolving application; do not preserve Milestone 0 as a second large app.
+Automated checks prove deterministic behavior and browser stability, not fun. Human playtest evidence controls the gate.
 
 ## Required Verification
 
-Focused deterministic tests must cover at least:
+Focused tests must cover:
 
-1. initial evidence state;
-2. valid deduction;
-3. invalid deduction without canonical mutation;
-4. duplicate deduction idempotence;
-5. causal progression;
-6. critical relationship unlock;
-7. final reconstruction state;
-8. correct conclusion;
-9. incorrect conclusion recovery;
-10. deterministic reset.
+1. initial availability, locked dependencies, hidden readings/rewards, and zero latches;
+2. unknown, locked, duplicate, concurrent, and malformed actions;
+3. open/close without losing canonical progress;
+4. thermal scan masking and scanned-cell submission;
+5. wrong answers without progress loss;
+6. hint gating and staged reveal;
+7. both starting-puzzle orders and latch-one release;
+8. protocol prerequisites, exact solution, and latch-two release;
+9. route rejection, exact chronological route, and locker opening;
+10. terminal immutability, reset, deterministic replay, and projection solution-field isolation.
 
-Run commands from the repository root:
+Run from the repository root:
 
-- `npm install` — install dependencies.
-- `npm run dev` — start the Vite development server.
-- `npm test` — run deterministic tests once.
-- `npm run typecheck` — run TypeScript checking without emitting files.
-- `npm run build` — typecheck and create the production bundle.
-- `npm run verify` — run tests, typecheck, and production build.
+- `npm install`
+- `npm run dev`
+- `npm test`
+- `npm run typecheck`
+- `npm run build`
+- `npm run verify`
 
-Before completion, run tests, typecheck, production build, and `npm run verify`. Also perform a browser playthrough covering first load, evidence readability, valid and invalid deductions, reconstruction, conclusions, reset, and browser console output. Never claim a command or playtest passed unless it was actually performed.
+Before a checkpoint, run relevant tests, typecheck, production build, unified verification, diff checks, an independent read-only review, and a real browser playthrough. Report unverified areas honestly.
 
 ## Codex Collaboration
 
-Before changing behavior, inspect relevant code, real execution paths, existing patterns, and current documentation. Prefer the smallest consistent change and preserve unrelated human edits.
+Inspect relevant code, execution paths, current patterns, documentation, Git state, and deployment configuration before behavior changes. Prefer the smallest coherent iteration, preserve unrelated human changes, and use explore → plan → implement → verify.
 
-After meaningful work, append a factual entry to `docs/CODEX_LOG.md` covering:
-
-- task;
-- human/product decision;
-- Codex contribution;
-- problems encountered;
-- solutions;
-- files changed;
-- verification performed and any unverified area.
-
-Do not exaggerate Codex's contribution. Human playtesting, not automated checks, answers whether the reconstruction actually feels like deduction.
+After meaningful work, append a factual entry to `docs/CODEX_LOG.md`: human feedback, alternatives, player question, prototype changes, browser problems, fixes, files, tests, review, and remaining uncertainty.

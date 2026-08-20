@@ -1,104 +1,102 @@
 import type {
   CaseDefinition,
-  DeductionRule,
   GameCommand,
   GameState,
-  RuntimeDeduction,
+  PresentationEffect,
+  PuzzleDefinition,
+  PuzzleId,
   TransitionResult
 } from "./types";
 
 export function createInitialState(): GameState {
   return {
-    phase: "RECONSTRUCTING",
-    activeHypothesis: null,
-    confirmedDeductionIds: [],
-    lastConclusion: null
+    phase: "SEARCHING",
+    activePuzzleId: null,
+    solvedPuzzleIds: [],
+    scannedThermalCellIds: [],
+    wrongAttempts: {},
+    hintLevels: {}
   };
 }
 
-function hasConfirmed(state: GameState, deductionId: string): boolean {
-  return state.confirmedDeductionIds.includes(deductionId);
+function findPuzzle(definition: CaseDefinition, puzzleId: PuzzleId): PuzzleDefinition | undefined {
+  return definition.puzzles.find((puzzle) => puzzle.id === puzzleId);
 }
 
-function hasPrerequisites(rule: DeductionRule, state: GameState): boolean {
-  return rule.requiresConfirmedDeductionIds.every((deductionId) =>
-    hasConfirmed(state, deductionId)
-  );
+export function arePrerequisitesMet(puzzle: PuzzleDefinition, state: GameState): boolean {
+  return puzzle.unlockRequires.every((requiredId) => state.solvedPuzzleIds.includes(requiredId));
 }
 
-function findOrderedRule(
-  definition: CaseDefinition,
-  causeEvidenceId: string,
-  resultEvidenceId: string
-): DeductionRule | undefined {
-  return definition.deductionRules.find(
-    (rule) =>
-      rule.fromEvidenceId === causeEvidenceId &&
-      rule.toEvidenceId === resultEvidenceId
-  );
-}
-
-function hypothesisFromRule(rule: DeductionRule): RuntimeDeduction {
-  return {
-    id: rule.id,
-    fromEvidenceId: rule.fromEvidenceId,
-    toEvidenceId: rule.toEvidenceId,
-    label: rule.label,
-    status: "HYPOTHESIS",
-    critical: rule.critical
-  };
-}
-
-function activeRule(
-  definition: CaseDefinition,
-  state: GameState
-): DeductionRule | undefined {
-  const hypothesis = state.activeHypothesis;
-
-  if (!hypothesis || hypothesis.status !== "HYPOTHESIS") {
-    return undefined;
+export function getLocksOpened(state: GameState): number {
+  let locks = 0;
+  if (
+    state.solvedPuzzleIds.includes("thermal-scan") &&
+    state.solvedPuzzleIds.includes("message-recovery")
+  ) {
+    locks += 1;
   }
-
-  return definition.deductionRules.find(
-    (rule) =>
-      rule.id === hypothesis.id &&
-      rule.fromEvidenceId === hypothesis.fromEvidenceId &&
-      rule.toEvidenceId === hypothesis.toEvidenceId &&
-      rule.label === hypothesis.label &&
-      rule.critical === hypothesis.critical
-  );
+  if (state.solvedPuzzleIds.includes("protocol-overlay")) {
+    locks += 1;
+  }
+  if (state.solvedPuzzleIds.includes("route-trace")) {
+    locks += 1;
+  }
+  return locks;
 }
 
-export function isDeductionUnlocked(
+function invalidAction(state: GameState, puzzleId: PuzzleId): TransitionResult {
+  return { state, effects: [{ type: "INVALID_ACTION", puzzleId }] };
+}
+
+function incrementWrongAttempt(state: GameState, puzzleId: PuzzleId): TransitionResult {
+  const attempts = (state.wrongAttempts[puzzleId] ?? 0) + 1;
+  return {
+    state: {
+      ...state,
+      wrongAttempts: { ...state.wrongAttempts, [puzzleId]: attempts }
+    },
+    effects: [{ type: "ANSWER_REJECTED", puzzleId, attempts }]
+  };
+}
+
+function solvePuzzle(state: GameState, puzzleId: PuzzleId): TransitionResult {
+  const locksBefore = getLocksOpened(state);
+  const solvedPuzzleIds = [...state.solvedPuzzleIds, puzzleId];
+  const solvedState: GameState = {
+    ...state,
+    phase: puzzleId === "route-trace" ? "SOLVED" : "SEARCHING",
+    activePuzzleId: null,
+    solvedPuzzleIds
+  };
+  const locksAfter = getLocksOpened(solvedState);
+  const effects: PresentationEffect[] = [{ type: "PUZZLE_SOLVED", puzzleId }];
+
+  for (let index = locksBefore + 1; index <= locksAfter; index += 1) {
+    effects.push({ type: "LOCK_RELEASED", index: index as 1 | 2 | 3 });
+  }
+  if (solvedState.phase === "SOLVED") {
+    effects.push({ type: "LOCKER_OPENED" });
+  }
+  return { state: solvedState, effects };
+}
+
+function arraysEqual(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function hasUniqueKnownIds(ids: string[], knownIds: string[]): boolean {
+  return ids.length === new Set(ids).size && ids.every((id) => knownIds.includes(id));
+}
+
+function activePuzzleFor(
   definition: CaseDefinition,
   state: GameState,
-  deductionId: string
-): boolean {
-  if (state.phase !== "RECONSTRUCTING" || hasConfirmed(state, deductionId)) {
-    return false;
+  puzzleId: PuzzleId
+): PuzzleDefinition | null {
+  if (state.activePuzzleId !== puzzleId) {
+    return null;
   }
-
-  const rule = definition.deductionRules.find(
-    (candidate) => candidate.id === deductionId
-  );
-
-  return Boolean(rule && hasPrerequisites(rule, state));
-}
-
-export function getUnlockedDeductionIds(
-  definition: CaseDefinition,
-  state: GameState
-): string[] {
-  return definition.deductionRules
-    .filter((rule) => isDeductionUnlocked(definition, state, rule.id))
-    .map((rule) => rule.id);
-}
-
-export function isReconstructionComplete(
-  definition: CaseDefinition,
-  state: GameState
-): boolean {
-  return definition.deductionRules.every((rule) => hasConfirmed(state, rule.id));
+  return findPuzzle(definition, puzzleId) ?? null;
 }
 
 export function transition(
@@ -106,200 +104,157 @@ export function transition(
   state: GameState,
   command: GameCommand
 ): TransitionResult {
-  switch (command.type) {
-    case "PROPOSE_DEDUCTION": {
-      const rule = findOrderedRule(
-        definition,
-        command.causeEvidenceId,
-        command.resultEvidenceId
-      );
+  if (command.type === "RESET") {
+    return { state: createInitialState(), effects: [{ type: "RESET" }] };
+  }
 
-      if (!rule || state.phase !== "RECONSTRUCTING") {
-        return {
-          state,
-          effects: [
-            {
-              type: "INVALID_DEDUCTION",
-              evidenceIds: [command.causeEvidenceId, command.resultEvidenceId]
-            }
-          ]
-        };
-      }
+  if (state.phase === "SOLVED") {
+    return { state, effects: [{ type: "CASE_ALREADY_SOLVED" }] };
+  }
 
-      if (hasConfirmed(state, rule.id)) {
-        return {
-          state,
-          effects: [
-            { type: "DEDUCTION_ALREADY_CONFIRMED", deductionId: rule.id }
-          ]
-        };
-      }
-
-      if (state.activeHypothesis?.id === rule.id) {
-        return {
-          state,
-          effects: [
-            { type: "HYPOTHESIS_ALREADY_EXISTS", deductionId: rule.id }
-          ]
-        };
-      }
-
-      if (state.activeHypothesis) {
-        return {
-          state,
-          effects: [
-            {
-              type: "ACTIVE_HYPOTHESIS_EXISTS",
-              deductionId: state.activeHypothesis.id
-            }
-          ]
-        };
-      }
-
-      if (!hasPrerequisites(rule, state)) {
-        return {
-          state,
-          effects: [{ type: "DEDUCTION_LOCKED", deductionId: rule.id }]
-        };
-      }
-
+  if (command.type === "OPEN_PUZZLE") {
+    const puzzle = findPuzzle(definition, command.puzzleId);
+    if (!puzzle) {
+      return { state, effects: [{ type: "INVALID_PUZZLE", puzzleId: command.puzzleId }] };
+    }
+    if (state.solvedPuzzleIds.includes(puzzle.id)) {
+      return { state, effects: [{ type: "PUZZLE_ALREADY_SOLVED", puzzleId: puzzle.id }] };
+    }
+    if (state.activePuzzleId === puzzle.id) {
+      return { state, effects: [{ type: "PUZZLE_ALREADY_OPEN", puzzleId: puzzle.id }] };
+    }
+    if (state.activePuzzleId) {
+      return { state, effects: [{ type: "ANOTHER_PUZZLE_OPEN", puzzleId: state.activePuzzleId }] };
+    }
+    const missingPuzzleIds = puzzle.unlockRequires.filter(
+      (requiredId) => !state.solvedPuzzleIds.includes(requiredId)
+    );
+    if (missingPuzzleIds.length > 0) {
       return {
-        state: {
-          ...state,
-          activeHypothesis: hypothesisFromRule(rule)
-        },
-        effects: [{ type: "HYPOTHESIS_CREATED", deductionId: rule.id }]
+        state,
+        effects: [{ type: "PUZZLE_LOCKED", puzzleId: puzzle.id, missingPuzzleIds }]
       };
     }
+    return {
+      state: { ...state, activePuzzleId: puzzle.id },
+      effects: [{ type: "PUZZLE_OPENED", puzzleId: puzzle.id }]
+    };
+  }
 
-    case "CONFIRM_DEDUCTION": {
-      const rule = activeRule(definition, state);
-
-      if (!rule) {
-        return { state, effects: [{ type: "NOTHING_TO_CONFIRM" }] };
-      }
-
-      if (
-        state.phase !== "RECONSTRUCTING" ||
-        hasConfirmed(state, rule.id) ||
-        !hasPrerequisites(rule, state)
-      ) {
-        return {
-          state,
-          effects: [{ type: "DEDUCTION_LOCKED", deductionId: rule.id }]
-        };
-      }
-
-      const nextConfirmedDeductionIds = [
-        ...state.confirmedDeductionIds,
-        rule.id
-      ];
-      const reconstructionComplete = definition.deductionRules.every(
-        (candidate) => nextConfirmedDeductionIds.includes(candidate.id)
-      );
-
-      return {
-        state: {
-          ...state,
-          phase: reconstructionComplete ? "CONCLUSION" : "RECONSTRUCTING",
-          activeHypothesis: null,
-          confirmedDeductionIds: nextConfirmedDeductionIds,
-          lastConclusion: null
-        },
-        effects: reconstructionComplete
-          ? [
-              { type: "HYPOTHESIS_CONFIRMED", deductionId: rule.id },
-              { type: "RECONSTRUCTION_COMPLETE", deductionId: rule.id }
-            ]
-          : [{ type: "HYPOTHESIS_CONFIRMED", deductionId: rule.id }]
-      };
+  if (command.type === "CLOSE_PUZZLE") {
+    if (!state.activePuzzleId) {
+      return { state, effects: [{ type: "NOTHING_TO_CLOSE" }] };
     }
+    const puzzleId = state.activePuzzleId;
+    return {
+      state: { ...state, activePuzzleId: null },
+      effects: [{ type: "PUZZLE_CLOSED", puzzleId }]
+    };
+  }
 
-    case "DISCARD_HYPOTHESIS": {
-      if (!state.activeHypothesis) {
-        return { state, effects: [{ type: "NOTHING_TO_DISCARD" }] };
-      }
+  if (command.type === "REQUEST_HINT") {
+    if (!state.activePuzzleId) {
+      return invalidAction(state, "none");
+    }
+    const puzzleId = state.activePuzzleId;
+    const currentLevel = state.hintLevels[puzzleId] ?? 0;
+    if (currentLevel >= 2) {
+      return { state, effects: [{ type: "NO_MORE_HINTS", puzzleId }] };
+    }
+    const attempts = state.wrongAttempts[puzzleId] ?? 0;
+    if (currentLevel === 0 && attempts < 1) {
+      return { state, effects: [{ type: "HINT_LOCKED", puzzleId }] };
+    }
+    const level = (currentLevel + 1) as 1 | 2;
+    return {
+      state: {
+        ...state,
+        hintLevels: { ...state.hintLevels, [puzzleId]: level }
+      },
+      effects: [{ type: "HINT_REVEALED", puzzleId, level }]
+    };
+  }
 
+  if (command.type === "SCAN_THERMAL_CELL") {
+    const puzzle = activePuzzleFor(definition, state, command.puzzleId);
+    if (!puzzle || puzzle.kind !== "THERMAL_SCAN") {
+      return invalidAction(state, command.puzzleId);
+    }
+    if (!puzzle.cells.some((cell) => cell.id === command.cellId)) {
+      return invalidAction(state, command.puzzleId);
+    }
+    if (state.scannedThermalCellIds.includes(command.cellId)) {
       return {
-        state: {
-          ...state,
-          activeHypothesis: null
-        },
+        state,
         effects: [
-          {
-            type: "HYPOTHESIS_DISCARDED",
-            deductionId: state.activeHypothesis.id
-          }
+          { type: "THERMAL_CELL_ALREADY_SCANNED", puzzleId: puzzle.id, cellId: command.cellId }
         ]
       };
     }
-
-    case "SUBMIT_CONCLUSION": {
-      if (state.phase === "SOLVED") {
-        return { state, effects: [{ type: "CASE_ALREADY_SOLVED" }] };
-      }
-
-      if (
-        state.phase !== "CONCLUSION" ||
-        !isReconstructionComplete(definition, state)
-      ) {
-        return { state, effects: [{ type: "CONCLUSION_LOCKED" }] };
-      }
-
-      const conclusion = definition.conclusions.find(
-        (candidate) => candidate.id === command.conclusionId
-      );
-
-      if (!conclusion) {
-        return {
-          state,
-          effects: [
-            {
-              type: "INVALID_CONCLUSION",
-              conclusionId: command.conclusionId
-            }
-          ]
-        };
-      }
-
-      if (conclusion.id !== definition.solution.correctConclusionId) {
-        const repeatedIncorrect =
-          state.lastConclusion?.conclusionId === conclusion.id &&
-          state.lastConclusion.result === "INCORRECT";
-
-        return {
-          state: repeatedIncorrect
-            ? state
-            : {
-                ...state,
-                lastConclusion: {
-                  conclusionId: conclusion.id,
-                  result: "INCORRECT"
-                }
-              },
-          effects: [
-            { type: "CONCLUSION_REJECTED", conclusionId: conclusion.id }
-          ]
-        };
-      }
-
-      return {
-        state: {
-          ...state,
-          phase: "SOLVED",
-          lastConclusion: {
-            conclusionId: conclusion.id,
-            result: "CORRECT"
-          }
-        },
-        effects: [{ type: "CASE_SOLVED", conclusionId: conclusion.id }]
-      };
-    }
-
-    case "RESET":
-      return {
-        state: createInitialState(),
-        effects: [{ type: "RESET" }]
-      };
+    return {
+      state: {
+        ...state,
+        scannedThermalCellIds: [...state.scannedThermalCellIds, command.cellId]
+      },
+      effects: [{ type: "THERMAL_CELL_SCANNED", puzzleId: puzzle.id, cellId: command.cellId }]
+    };
   }
+
+  if (command.type === "SUBMIT_THERMAL") {
+    const puzzle = activePuzzleFor(definition, state, command.puzzleId);
+    if (!puzzle || puzzle.kind !== "THERMAL_SCAN") {
+      return invalidAction(state, command.puzzleId);
+    }
+    if (!state.scannedThermalCellIds.includes(command.cellId)) {
+      return invalidAction(state, command.puzzleId);
+    }
+    return command.cellId === puzzle.solutionCellId
+      ? solvePuzzle(state, puzzle.id)
+      : incrementWrongAttempt(state, puzzle.id);
+  }
+
+  if (command.type === "SUBMIT_MESSAGE_ORDER") {
+    const puzzle = activePuzzleFor(definition, state, command.puzzleId);
+    if (!puzzle || puzzle.kind !== "MESSAGE_ORDER") {
+      return invalidAction(state, command.puzzleId);
+    }
+    const knownIds = puzzle.fragments.map((fragment) => fragment.id);
+    if (
+      command.fragmentIds.length !== knownIds.length ||
+      !hasUniqueKnownIds(command.fragmentIds, knownIds)
+    ) {
+      return invalidAction(state, command.puzzleId);
+    }
+    return arraysEqual(command.fragmentIds, puzzle.solutionFragmentIds)
+      ? solvePuzzle(state, puzzle.id)
+      : incrementWrongAttempt(state, puzzle.id);
+  }
+
+  if (command.type === "SUBMIT_PROTOCOL") {
+    const puzzle = activePuzzleFor(definition, state, command.puzzleId);
+    if (!puzzle || puzzle.kind !== "PROTOCOL_DIAL") {
+      return invalidAction(state, command.puzzleId);
+    }
+    if (
+      !puzzle.ruleOptions.includes(command.rule) ||
+      !puzzle.thresholdOptions.includes(command.threshold)
+    ) {
+      return invalidAction(state, command.puzzleId);
+    }
+    return command.rule === puzzle.solutionRule && command.threshold === puzzle.solutionThreshold
+      ? solvePuzzle(state, puzzle.id)
+      : incrementWrongAttempt(state, puzzle.id);
+  }
+
+  const puzzle = activePuzzleFor(definition, state, command.puzzleId);
+  if (!puzzle || puzzle.kind !== "ROUTE_TRACE") {
+    return invalidAction(state, command.puzzleId);
+  }
+  const knownNodeIds = puzzle.nodes.map((node) => node.id);
+  if (!hasUniqueKnownIds(command.nodeIds, knownNodeIds)) {
+    return invalidAction(state, command.puzzleId);
+  }
+  return arraysEqual(command.nodeIds, puzzle.solutionNodeIds)
+    ? solvePuzzle(state, puzzle.id)
+    : incrementWrongAttempt(state, puzzle.id);
 }
