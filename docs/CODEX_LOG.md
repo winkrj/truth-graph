@@ -396,3 +396,39 @@ Respond to the human's direction that each clue should feel like a different mod
 - Independent review cycle 1 reported Critical: 0 and High: 0, plus two Medium hint/accessibility findings. Review cycle 2 confirmed the hint fix and the main modal fixes with Critical: 0 and High: 0, then identified the disabled-trigger focus edge case. That edge case was patched and directly browser-tested; the two-cycle review limit was respected.
 - Final `npm run verify` passed: Vitest 22/22, TypeScript checking, and the Vite 7.3.6 production build all completed successfully. Final `git diff --check` also passed. No deployment or submission verification was performed because both remain blocked by the human Core Fun Gate.
 - No first-time human has yet judged this candidate fun, immersive, or original enough. Those qualities remain the explicit gate rather than an automated claim.
+
+---
+
+## Candidate 03 Public Playtest Deployment — 2026-08-20
+
+### Task and Human Decision
+
+The human requested an immediate deployment so people around them could play Candidate 03 and provide reactions. This authorizes a public playtest build; it is not a declaration that the Core Fun Gate has passed and does not authorize submission-package work.
+
+### Deployment Decisions and Problems
+
+- The validated Candidate 03 source was committed on `playtest/core-fun-candidate-03` first so the experimental state could remain identifiable.
+- The Vercel branch preview built successfully but redirected anonymous visitors to Vercel login because preview deployments are protected on this project.
+- The stable production alias `https://truth-graph.vercel.app/` was already public but initially served the older Proof of Fun v2 build.
+- Because the human explicitly needed a shareable URL, the same validated Candidate 03 commit was fast-forwarded to `main`, allowing the existing GitHub-to-Vercel production integration to update the public alias.
+- A logged-out temporary Vercel upload was not used after its safety approval was rejected. No workaround or untrusted upload was attempted.
+
+### Production QA and Follow-up Fix
+
+- Anonymous HTTP verification returned `200` from `https://truth-graph.vercel.app/` without a login redirect and returned the Candidate 03 title and authored production assets.
+- In-app browser QA loaded the public initial screen with the missing-laptop hook, `0 / 3` progress, no B-3 answer, and no hidden `DEMO READY` laptop text.
+- Public interaction QA opened the thermal tablet, scanned B3, confirmed `82°C`, and returned to the desk.
+- That production pass exposed a focus timing edge case: when browser automation opened a puzzle while `BODY` was focused, the modal cleanup considered `BODY` a usable restoration target. The focus therefore did not move to the next playable object.
+- The cleanup now waits for the post-commit animation frame and restores the previous target only when it matches the same focusable-control selector used by the modal. Otherwise it focuses the first enabled desk object or the enabled reset control.
+- Local reproduction began with `BODY` focused and finished with the team-phone button focused. The corrected production bundle reproduced the same result.
+
+### Verification Performed
+
+- Gameplay commit tested and deployed: `ee1e05481d9a370a1e32d0d5be8374d736460a15`.
+- Final `npm run verify` passed: Vitest 22/22, TypeScript checking, and the Vite 7.3.6 production build completed successfully.
+- `git diff --check` passed.
+- Independent review cycle 1 reported Critical: 0 and High: 0 for the post-commit focus timing change. Production QA then exposed the noninteractive-origin case; review cycle 2 reported Critical: 0 and High: 0 after that predicate was corrected.
+- GitHub reported the Vercel production deployment for the gameplay commit as successful.
+- The public alias returned the corrected `index-lwiz_3G1.js` bundle, loaded without authentication, survived a fresh navigation, and accepted the first playable interaction.
+- Final public playtest URL: `https://truth-graph.vercel.app/`.
+- Feedback from real first-time players is still pending and remains the evidence required to approve or reject the Core Fun Gate.
