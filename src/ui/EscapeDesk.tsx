@@ -213,7 +213,8 @@ function PuzzleShell({
       dialog?.removeEventListener("keydown", keepFocusInside);
       window.requestAnimationFrame(() => {
         const triggerStillUsable =
-          previouslyFocused?.isConnected && !previouslyFocused.matches(":disabled");
+          previouslyFocused?.isConnected &&
+          previouslyFocused.matches(focusableSelector);
         if (triggerStillUsable) {
           previouslyFocused.focus();
           return;
